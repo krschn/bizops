@@ -1,4 +1,4 @@
-# Plan 02 — Products
+# Plan 02 — Products DONE
 
 **Objective:** Full CRUD for products (name, price, unit of measure). Soft-deleted products are recoverable from a Trash section. No hard deletes from the active list.
 

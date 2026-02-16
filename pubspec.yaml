@@ -1,7 +1,6 @@
 name: bizops
 description: "A new Flutter project."
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -15,18 +14,18 @@ dependencies:
   flutter_bloc: ^9.1.1
   bloc: ^9.2.0
   get_it: ^9.2.0
-  injectable: ^2.7.1+4
-
-  
+  dartz: ^0.10.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  go_router: ^17.1.0
+  equatable: ^2.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.4
-
   flutter_lints: ^6.0.0
   bloc_test: ^10.0.0
 
 flutter:
   uses-material-design: true
-

@@ -120,26 +120,41 @@ GetMonthlyReport
 
 Files: `lib/features/reporting/presentation/bloc/`
 
-**Events** (`report_event.dart`):
-```
-ReportEvent (sealed/freezed)
-  ReportPeriodChanged(ReportPeriod period)   ← tab switch; resets to current date
-  ReportDateNavigated(bool forward)           ← prev/next arrow; forward=true means next
-  ReportRefreshed()                           ← re-load current state
+**Events** (`report_event.dart`) — plain sealed classes:
+```dart
+sealed class ReportEvent { const ReportEvent(); }
+final class ReportPeriodChanged extends ReportEvent {
+  const ReportPeriodChanged(this.period); final ReportPeriod period;
+}
+final class ReportDateNavigated extends ReportEvent {
+  const ReportDateNavigated(this.forward); final bool forward;
+}
+final class ReportRefreshed extends ReportEvent { const ReportRefreshed(); }
 ```
 
-**States** (`report_state.dart`):
-```
-ReportState (sealed/freezed)
-  initial()
-  loading()
-  loaded {
-    TransactionSummary summary
-    ReportPeriod period
-    DateTime currentDate        ← the anchor date (day/week-start/month-start) for navigation
-    bool canGoForward           ← false if currentDate is today or later (no future reports)
-  }
-  error(Failure failure)
+**States** (`report_state.dart`) — plain sealed classes with Equatable:
+```dart
+sealed class ReportState extends Equatable {
+  const ReportState();
+  @override List<Object?> get props => [];
+}
+final class ReportInitial extends ReportState { const ReportInitial(); }
+final class ReportLoading extends ReportState { const ReportLoading(); }
+final class ReportLoaded extends ReportState {
+  const ReportLoaded({
+    required this.summary, required this.period,
+    required this.currentDate, required this.canGoForward,
+  });
+  final TransactionSummary summary;
+  final ReportPeriod period;
+  final DateTime currentDate;
+  final bool canGoForward;
+  @override List<Object?> get props => [summary, period, currentDate, canGoForward];
+}
+final class ReportError extends ReportState {
+  const ReportError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **BLoC** (`report_bloc.dart`):
@@ -228,9 +243,19 @@ ReportGrandTotalBar({ required double grandTotal })
 
 ## Dependency Injection
 
-`ReportBloc`: `@injectable` (transient).
+In `lib/core/di/injection.dart`, register manually:
 
-Use cases: `@injectable`.
+```dart
+// Reporting
+getIt.registerFactory(() => GetDailyReport(getIt()));
+getIt.registerFactory(() => GetWeeklyReport(getIt()));
+getIt.registerFactory(() => GetMonthlyReport(getIt()));
+getIt.registerFactory(() => ReportBloc(
+  getDailyReport: getIt(),
+  getWeeklyReport: getIt(),
+  getMonthlyReport: getIt(),
+));
+```
 
 No new repositories or data sources to register.
 

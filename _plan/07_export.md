@@ -185,23 +185,39 @@ Wrap in `try/catch` → `UnexpectedFailure` on error.
 
 Files: `lib/features/export/presentation/bloc/`
 
-**Events** (`export_event.dart`):
-```
-ExportEvent (sealed/freezed)
-  TransactionExportRequested(DateTime from, DateTime to)
-  PayrollExportRequested(PayrollPeriod period)
-  ExportFileShared(String filePath)
+**Events** (`export_event.dart`) — plain sealed classes:
+```dart
+sealed class ExportEvent { const ExportEvent(); }
+final class TransactionExportRequested extends ExportEvent {
+  const TransactionExportRequested(this.from, this.to);
+  final DateTime from; final DateTime to;
+}
+final class PayrollExportRequested extends ExportEvent {
+  const PayrollExportRequested(this.period); final PayrollPeriod period;
+}
+final class ExportFileShared extends ExportEvent {
+  const ExportFileShared(this.filePath); final String filePath;
+}
 ```
 
-**States** (`export_state.dart`):
-```
-ExportState (sealed/freezed)
-  initial()
-  exporting()
-  exportSuccess(ExportResult result)
-  sharing()
-  shareSuccess()
-  error(Failure failure)
+**States** (`export_state.dart`) — plain sealed classes with Equatable:
+```dart
+sealed class ExportState extends Equatable {
+  const ExportState();
+  @override List<Object?> get props => [];
+}
+final class ExportInitial extends ExportState { const ExportInitial(); }
+final class ExportExporting extends ExportState { const ExportExporting(); }
+final class ExportSuccess extends ExportState {
+  const ExportSuccess(this.result); final ExportResult result;
+  @override List<Object?> get props => [result];
+}
+final class ExportSharing extends ExportState { const ExportSharing(); }
+final class ExportShareSuccess extends ExportState { const ExportShareSuccess(); }
+final class ExportError extends ExportState {
+  const ExportError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **BLoC** (`export_bloc.dart`):
@@ -262,19 +278,24 @@ ExportSuccessDialog({ required ExportResult result, required VoidCallback onShar
 
 ## Dependency Injection
 
+In `lib/core/di/injection.dart`, register manually:
+
 ```dart
-@module
-abstract class ExportModule {
-  // No Hive boxes needed for export.
-}
+// Export
+getIt.registerLazySingleton<ExportRepository>(
+  () => ExportRepositoryImpl(),
+);
+getIt.registerFactory(() => ExportTransactionsToExcel(getIt(), getIt()));
+getIt.registerFactory(() => ExportPayrollToExcel(getIt(), getIt()));
+getIt.registerFactory(() => ShareExportFile(getIt()));
+getIt.registerFactory(() => ExportBloc(
+  exportTransactionsToExcel: getIt(),
+  exportPayrollToExcel: getIt(),
+  shareExportFile: getIt(),
+));
 ```
 
-`ExportRepositoryImpl`:
-- `@LazySingleton(as: ExportRepository)`.
-
-Use cases: `@injectable`.
-
-`ExportBloc`: `@injectable` (transient).
+No Hive boxes needed for export. No empty module class.
 
 ---
 

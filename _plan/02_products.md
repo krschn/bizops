@@ -33,8 +33,9 @@ Product (immutable, equatable)
   updatedAt: DateTime
 ```
 
-- Immutable via `const` constructor or `freezed`.
-- Equality based on all fields.
+- Immutable via `const` constructor.
+- Implements `Equatable` — equality based on all fields.
+- `copyWith(...)` method for field updates.
 - No framework dependencies.
 
 ### Repository Interface
@@ -82,20 +83,69 @@ Each use case is a class with a single `call(...)` method returning `Either<Fail
 
 File: `lib/features/products/data/models/product_model.dart`
 
-```
-@HiveType(typeId: 1)
-ProductModel extends HiveObject
-  @HiveField(0) id: String
-  @HiveField(1) name: String
-  @HiveField(2) price: double
-  @HiveField(3) unit: String
-  @HiveField(4) isDeleted: bool
-  @HiveField(5) createdAt: DateTime
-  @HiveField(6) updatedAt: DateTime
+```dart
+class ProductModel extends HiveObject {
+  ProductModel({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.unit,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  String id;
+  String name;
+  double price;
+  String unit;
+  bool isDeleted;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  Product toEntity() => Product(
+    id: id, name: name, price: price, unit: unit,
+    isDeleted: isDeleted, createdAt: createdAt, updatedAt: updatedAt,
+  );
+
+  static ProductModel fromEntity(Product p) => ProductModel(
+    id: p.id, name: p.name, price: p.price, unit: p.unit,
+    isDeleted: p.isDeleted, createdAt: p.createdAt, updatedAt: p.updatedAt,
+  );
+}
+
+class ProductModelAdapter extends TypeAdapter<ProductModel> {
+  @override
+  final int typeId = 1;
+
+  @override
+  ProductModel read(BinaryReader reader) {
+    return ProductModel(
+      id: reader.readString(),
+      name: reader.readString(),
+      price: reader.readDouble(),
+      unit: reader.readString(),
+      isDeleted: reader.readBool(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ProductModel obj) {
+    writer
+      ..writeString(obj.id)
+      ..writeString(obj.name)
+      ..writeDouble(obj.price)
+      ..writeString(obj.unit)
+      ..writeBool(obj.isDeleted)
+      ..writeInt(obj.createdAt.millisecondsSinceEpoch)
+      ..writeInt(obj.updatedAt.millisecondsSinceEpoch);
+  }
+}
 ```
 
-- Run `dart run build_runner build` to generate `product_model.g.dart`.
-- Provides `toEntity()` → `Product` and a static/factory `fromEntity(Product)` → `ProductModel`.
+No `@HiveType`/`@HiveField` annotations. No generated `.g.dart` file. The adapter is registered in `hive_initializer.dart` via `Hive.registerAdapter(ProductModelAdapter())`.
 
 ### Data Source
 
@@ -138,34 +188,79 @@ File: `lib/features/products/data/repositories/product_repository_impl.dart`
 
 Files in `lib/features/products/presentation/bloc/`:
 
-**Events** (`product_event.dart`):
-```
-ProductEvent (sealed/freezed)
-  ProductsLoaded()
-  ProductsTrashLoaded()
-  ProductSaveRequested(Product product)
-  ProductDeleteRequested(String id)
-  ProductRestoreRequested(String id)
-  ProductPermanentDeleteRequested(String id)
+**Events** (`product_event.dart`) — plain sealed classes:
+```dart
+sealed class ProductEvent {
+  const ProductEvent();
+}
+final class ProductsLoaded extends ProductEvent {
+  const ProductsLoaded();
+}
+final class ProductsTrashLoaded extends ProductEvent {
+  const ProductsTrashLoaded();
+}
+final class ProductSaveRequested extends ProductEvent {
+  const ProductSaveRequested(this.product);
+  final Product product;
+}
+final class ProductDeleteRequested extends ProductEvent {
+  const ProductDeleteRequested(this.id);
+  final String id;
+}
+final class ProductRestoreRequested extends ProductEvent {
+  const ProductRestoreRequested(this.id);
+  final String id;
+}
+final class ProductPermanentDeleteRequested extends ProductEvent {
+  const ProductPermanentDeleteRequested(this.id);
+  final String id;
+}
 ```
 
-**States** (`product_state.dart`):
-```
-ProductState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<Product> products)
-  trashLoaded(List<Product> products)
-  saving()
-  saveSuccess()
-  error(Failure failure)
+**States** (`product_state.dart`) — plain sealed classes with Equatable:
+```dart
+sealed class ProductState extends Equatable {
+  const ProductState();
+  @override
+  List<Object?> get props => [];
+}
+final class ProductInitial extends ProductState {
+  const ProductInitial();
+}
+final class ProductLoading extends ProductState {
+  const ProductLoading();
+}
+final class ProductLoaded extends ProductState {
+  const ProductLoaded(this.products);
+  final List<Product> products;
+  @override
+  List<Object?> get props => [products];
+}
+final class ProductTrashLoaded extends ProductState {
+  const ProductTrashLoaded(this.products);
+  final List<Product> products;
+  @override
+  List<Object?> get props => [products];
+}
+final class ProductSaving extends ProductState {
+  const ProductSaving();
+}
+final class ProductSaveSuccess extends ProductState {
+  const ProductSaveSuccess();
+}
+final class ProductError extends ProductState {
+  const ProductError(this.failure);
+  final Failure failure;
+  @override
+  List<Object?> get props => [failure];
+}
 ```
 
 **BLoC** (`product_bloc.dart`):
 - Injects: `GetProducts`, `GetDeletedProducts`, `SaveProduct`, `SoftDeleteProduct`, `RestoreProduct`, `PermanentDeleteProduct`.
-- `on<ProductsLoaded>` — emits `loading()`, calls `GetProducts`, emits `loaded(products)` or `error(failure)`.
-- `on<ProductsTrashLoaded>` — emits `loading()`, calls `GetDeletedProducts`, emits `trashLoaded(products)` or `error(failure)`.
-- `on<ProductSaveRequested>` — emits `saving()`, calls `SaveProduct`, emits `saveSuccess()` or `error(failure)`.
+- `on<ProductsLoaded>` — emits `ProductLoading()`, calls `GetProducts`, emits `ProductLoaded(products)` or `ProductError(failure)`.
+- `on<ProductsTrashLoaded>` — emits `ProductLoading()`, calls `GetDeletedProducts`, emits `ProductTrashLoaded(products)` or `ProductError(failure)`.
+- `on<ProductSaveRequested>` — emits `ProductSaving()`, calls `SaveProduct`, emits `ProductSaveSuccess()` or `ProductError(failure)`.
 - `on<ProductDeleteRequested>` — calls `SoftDeleteProduct`, then re-adds `ProductsLoaded()`.
 - `on<ProductRestoreRequested>` — calls `RestoreProduct`, then re-adds `ProductsTrashLoaded()`.
 - `on<ProductPermanentDeleteRequested>` — calls `PermanentDeleteProduct`, then re-adds `ProductsTrashLoaded()`.
@@ -179,12 +274,12 @@ ProductState (sealed/freezed)
 - Provides `ProductBloc` via `BlocProvider`.
 - On init, adds `ProductsLoaded()`.
 - On tab switch to Trash, adds `ProductsTrashLoaded()`.
-- Active tab: `BlocBuilder` on `loaded` state → `ListView` of `ProductListTile`.
+- Active tab: `BlocBuilder` on `ProductLoaded` state → `ListView` of `ProductListTile`.
   - On delete: shows `ConfirmDeleteDialog`, on confirm adds `ProductDeleteRequested(id)`.
-- Trash tab: `BlocBuilder` on `trashLoaded` state → `ListView` of `ProductTrashTile`.
+- Trash tab: `BlocBuilder` on `ProductTrashLoaded` state → `ListView` of `ProductTrashTile`.
 - FAB: navigates to `/products/new`.
-- Shows `AppLoadingWidget` on `loading` state.
-- Shows `AppErrorWidget` on `error` state with retry.
+- Shows `AppLoadingWidget` on `ProductLoading` state.
+- Shows `AppErrorWidget` on `ProductError` state with retry.
 - Shows `AppEmptyStateWidget` when list is empty.
 
 **`lib/features/products/presentation/pages/product_form_page.dart`**
@@ -198,10 +293,10 @@ ProductState (sealed/freezed)
 - Save button: adds `ProductSaveRequested(product)` where `product` is:
   - New: `Product(id: uuid, ..., isDeleted: false, createdAt: now, updatedAt: now)`.
   - Edit: existing product `copyWith(name, price, unit, updatedAt: now)`.
-- On `saveSuccess` state: `context.pop()`.
-- On `error` state: show `SnackBar` with failure message.
+- On `ProductSaveSuccess` state: `context.pop()`.
+- On `ProductError` state: show `SnackBar` with failure message.
 - Uses `LabeledField` for each field.
-- Uses `PrimaryButton` for save, with `isLoading: true` during `saving` state.
+- Uses `PrimaryButton` for save, with `isLoading: true` during `ProductSaving` state.
 
 ### Widgets
 
@@ -224,27 +319,34 @@ ProductTrashTile({ required Product product, required VoidCallback onRestore, re
 
 ## Dependency Injection Registration
 
-In `lib/features/products/data/datasources/product_local_data_source.dart`:
-- `@LazySingleton(as: ProductLocalDataSource)` on `ProductLocalDataSourceImpl`.
+In `lib/core/di/injection.dart`, register manually:
 
-In `lib/features/products/data/repositories/product_repository_impl.dart`:
-- `@LazySingleton(as: ProductRepository)` on `ProductRepositoryImpl`.
-
-In each use case:
-- `@injectable` annotation.
-
-`ProductBloc`:
-- `@injectable` annotation (transient — new instance per page).
-
-`Box<ProductModel>`:
-- Register in `lib/core/di/injection.dart` (or a products-specific module) as:
-  ```dart
-  @module
-  abstract class ProductsModule {
-    @lazySingleton
-    Box<ProductModel> get productBox => Hive.box<ProductModel>(HiveBoxNames.products);
-  }
-  ```
+```dart
+// Products
+getIt.registerLazySingleton<Box<ProductModel>>(
+  () => Hive.box<ProductModel>(HiveBoxNames.products),
+);
+getIt.registerLazySingleton<ProductLocalDataSource>(
+  () => ProductLocalDataSourceImpl(getIt()),
+);
+getIt.registerLazySingleton<ProductRepository>(
+  () => ProductRepositoryImpl(getIt()),
+);
+getIt.registerFactory(() => GetProducts(getIt()));
+getIt.registerFactory(() => GetDeletedProducts(getIt()));
+getIt.registerFactory(() => SaveProduct(getIt()));
+getIt.registerFactory(() => SoftDeleteProduct(getIt()));
+getIt.registerFactory(() => RestoreProduct(getIt()));
+getIt.registerFactory(() => PermanentDeleteProduct(getIt()));
+getIt.registerFactory(() => ProductBloc(
+  getProducts: getIt(),
+  getDeletedProducts: getIt(),
+  saveProduct: getIt(),
+  softDeleteProduct: getIt(),
+  restoreProduct: getIt(),
+  permanentDeleteProduct: getIt(),
+));
+```
 
 ---
 
@@ -260,7 +362,6 @@ lib/features/products/domain/usecases/soft_delete_product.dart
 lib/features/products/domain/usecases/restore_product.dart
 lib/features/products/domain/usecases/permanent_delete_product.dart
 lib/features/products/data/models/product_model.dart
-lib/features/products/data/models/product_model.g.dart          ← generated
 lib/features/products/data/datasources/product_local_data_source.dart
 lib/features/products/data/repositories/product_repository_impl.dart
 lib/features/products/presentation/bloc/product_event.dart
@@ -301,16 +402,15 @@ test/features/products/presentation/bloc/product_bloc_test.dart
 
 ### BLoC Tests (use `bloc_test`, mock all use cases)
 
-- `ProductsLoaded` → emits `[loading(), loaded(products)]`.
-- `ProductsLoaded` when use case fails → emits `[loading(), error(failure)]`.
-- `ProductSaveRequested` valid → emits `[saving(), saveSuccess()]`.
+- `ProductsLoaded` → emits `[ProductLoading(), ProductLoaded(products)]`.
+- `ProductsLoaded` when use case fails → emits `[ProductLoading(), ProductError(failure)]`.
+- `ProductSaveRequested` valid → emits `[ProductSaving(), ProductSaveSuccess()]`.
 - `ProductDeleteRequested` → calls `SoftDeleteProduct`, then re-loads.
 
 ---
 
 ## Verification Checklist
 
-- [ ] `build_runner` generates `product_model.g.dart` without errors.
 - [ ] Product list shows active products; Trash tab shows soft-deleted products.
 - [ ] Creating a product with empty name shows validation error.
 - [ ] Soft-deleting moves product to Trash tab.

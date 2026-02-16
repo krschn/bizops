@@ -190,46 +190,101 @@ All in `lib/features/payroll/domain/usecases/`.
 
 **File: `lib/features/payroll/data/models/employee_model.dart`**
 
-```
-@HiveType(typeId: 5)
-EmployeeModel extends HiveObject
-  @HiveField(0) id: String
-  @HiveField(1) name: String
-  @HiveField(2) dailyRate: double
-  @HiveField(3) isActive: bool
-  @HiveField(4) createdAt: DateTime
-  @HiveField(5) updatedAt: DateTime
+```dart
+class EmployeeModel extends HiveObject {
+  EmployeeModel({ required this.id, required this.name, required this.dailyRate,
+    required this.isActive, required this.createdAt, required this.updatedAt });
+  String id; String name; double dailyRate; bool isActive;
+  DateTime createdAt; DateTime updatedAt;
+}
+
+class EmployeeModelAdapter extends TypeAdapter<EmployeeModel> {
+  @override final int typeId = 5;
+  @override
+  EmployeeModel read(BinaryReader reader) => EmployeeModel(
+    id: reader.readString(), name: reader.readString(),
+    dailyRate: reader.readDouble(), isActive: reader.readBool(),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+  );
+  @override
+  void write(BinaryWriter writer, EmployeeModel obj) {
+    writer..writeString(obj.id)..writeString(obj.name)
+      ..writeDouble(obj.dailyRate)..writeBool(obj.isActive)
+      ..writeInt(obj.createdAt.millisecondsSinceEpoch)
+      ..writeInt(obj.updatedAt.millisecondsSinceEpoch);
+  }
+}
 ```
 
 **File: `lib/features/payroll/data/models/payroll_period_model.dart`**
 
-```
-@HiveType(typeId: 6)
-PayrollPeriodModel extends HiveObject
-  @HiveField(0) id: String
-  @HiveField(1) startDate: DateTime
-  @HiveField(2) endDate: DateTime
-  @HiveField(3) label: String
-  @HiveField(4) isCustom: bool
+```dart
+class PayrollPeriodModel extends HiveObject {
+  PayrollPeriodModel({ required this.id, required this.startDate,
+    required this.endDate, required this.label, required this.isCustom });
+  String id; DateTime startDate; DateTime endDate; String label; bool isCustom;
+}
+
+class PayrollPeriodModelAdapter extends TypeAdapter<PayrollPeriodModel> {
+  @override final int typeId = 6;
+  @override
+  PayrollPeriodModel read(BinaryReader reader) => PayrollPeriodModel(
+    id: reader.readString(),
+    startDate: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    endDate: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    label: reader.readString(), isCustom: reader.readBool(),
+  );
+  @override
+  void write(BinaryWriter writer, PayrollPeriodModel obj) {
+    writer..writeString(obj.id)
+      ..writeInt(obj.startDate.millisecondsSinceEpoch)
+      ..writeInt(obj.endDate.millisecondsSinceEpoch)
+      ..writeString(obj.label)..writeBool(obj.isCustom);
+  }
+}
 ```
 
 **File: `lib/features/payroll/data/models/payroll_entry_model.dart`**
 
+```dart
+class PayrollEntryModel extends HiveObject {
+  PayrollEntryModel({ required this.id, required this.periodId,
+    required this.employeeId, required this.employeeName,
+    required this.dailyRate, required this.daysWorked, required this.totalPay,
+    required this.notes, required this.isDeleted,
+    required this.createdAt, required this.updatedAt });
+  String id; String periodId; String employeeId; String employeeName;
+  double dailyRate; double daysWorked; double totalPay;
+  String notes; bool isDeleted; DateTime createdAt; DateTime updatedAt;
+}
+
+class PayrollEntryModelAdapter extends TypeAdapter<PayrollEntryModel> {
+  @override final int typeId = 7;
+  @override
+  PayrollEntryModel read(BinaryReader reader) => PayrollEntryModel(
+    id: reader.readString(), periodId: reader.readString(),
+    employeeId: reader.readString(), employeeName: reader.readString(),
+    dailyRate: reader.readDouble(), daysWorked: reader.readDouble(),
+    totalPay: reader.readDouble(), notes: reader.readString(),
+    isDeleted: reader.readBool(),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+  );
+  @override
+  void write(BinaryWriter writer, PayrollEntryModel obj) {
+    writer..writeString(obj.id)..writeString(obj.periodId)
+      ..writeString(obj.employeeId)..writeString(obj.employeeName)
+      ..writeDouble(obj.dailyRate)..writeDouble(obj.daysWorked)
+      ..writeDouble(obj.totalPay)..writeString(obj.notes)
+      ..writeBool(obj.isDeleted)
+      ..writeInt(obj.createdAt.millisecondsSinceEpoch)
+      ..writeInt(obj.updatedAt.millisecondsSinceEpoch);
+  }
+}
 ```
-@HiveType(typeId: 7)
-PayrollEntryModel extends HiveObject
-  @HiveField(0)  id: String
-  @HiveField(1)  periodId: String
-  @HiveField(2)  employeeId: String
-  @HiveField(3)  employeeName: String
-  @HiveField(4)  dailyRate: double
-  @HiveField(5)  daysWorked: double
-  @HiveField(6)  totalPay: double
-  @HiveField(7)  notes: String
-  @HiveField(8)  isDeleted: bool
-  @HiveField(9)  createdAt: DateTime
-  @HiveField(10) updatedAt: DateTime
-```
+
+No `@HiveType`/`@HiveField` annotations. No generated `.g.dart` files.
 
 ### Data Sources
 
@@ -261,24 +316,40 @@ Three implementations following the same error-wrapping pattern as Products/Supp
 
 Files: `lib/features/payroll/presentation/bloc/employee_bloc/`
 
-**Events:**
-```
-EmployeeEvent (sealed/freezed)
-  EmployeesLoaded()
-  EmployeeSaveRequested(Employee employee)
-  EmployeeDeactivateRequested(String id)
-  EmployeeReactivateRequested(String id)
+**Events** — plain sealed classes:
+```dart
+sealed class EmployeeEvent { const EmployeeEvent(); }
+final class EmployeesLoaded extends EmployeeEvent { const EmployeesLoaded(); }
+final class EmployeeSaveRequested extends EmployeeEvent {
+  const EmployeeSaveRequested(this.employee); final Employee employee;
+}
+final class EmployeeDeactivateRequested extends EmployeeEvent {
+  const EmployeeDeactivateRequested(this.id); final String id;
+}
+final class EmployeeReactivateRequested extends EmployeeEvent {
+  const EmployeeReactivateRequested(this.id); final String id;
+}
 ```
 
-**States:**
-```
-EmployeeState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<Employee> active, List<Employee> inactive)
-  saving()
-  saveSuccess()
-  error(Failure failure)
+**States** — plain sealed classes with Equatable:
+```dart
+sealed class EmployeeState extends Equatable {
+  const EmployeeState();
+  @override List<Object?> get props => [];
+}
+final class EmployeeInitial extends EmployeeState { const EmployeeInitial(); }
+final class EmployeeLoading extends EmployeeState { const EmployeeLoading(); }
+final class EmployeeLoaded extends EmployeeState {
+  const EmployeeLoaded(this.active, this.inactive);
+  final List<Employee> active; final List<Employee> inactive;
+  @override List<Object?> get props => [active, inactive];
+}
+final class EmployeeSaving extends EmployeeState { const EmployeeSaving(); }
+final class EmployeeSaveSuccess extends EmployeeState { const EmployeeSaveSuccess(); }
+final class EmployeeError extends EmployeeState {
+  const EmployeeError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **Logic:**
@@ -291,24 +362,41 @@ EmployeeState (sealed/freezed)
 
 Files: `lib/features/payroll/presentation/bloc/payroll_period_bloc/`
 
-**Events:**
-```
-PayrollPeriodEvent (sealed/freezed)
-  PayrollPeriodsLoaded()
-  CurrentWeekPeriodRequested()
-  NewWeekPeriodCreated()       ← user taps "New Week" button
-  CustomPeriodCreated(DateTime start, DateTime end, String label)
-  PayrollPeriodSelected(String periodId)
-  PayrollPeriodDeleted(String id)
+**Events** — plain sealed classes:
+```dart
+sealed class PayrollPeriodEvent { const PayrollPeriodEvent(); }
+final class PayrollPeriodsLoaded extends PayrollPeriodEvent { const PayrollPeriodsLoaded(); }
+final class CurrentWeekPeriodRequested extends PayrollPeriodEvent { const CurrentWeekPeriodRequested(); }
+final class NewWeekPeriodCreated extends PayrollPeriodEvent { const NewWeekPeriodCreated(); }
+final class CustomPeriodCreated extends PayrollPeriodEvent {
+  const CustomPeriodCreated(this.start, this.end, this.label);
+  final DateTime start; final DateTime end; final String label;
+}
+final class PayrollPeriodSelected extends PayrollPeriodEvent {
+  const PayrollPeriodSelected(this.periodId); final String periodId;
+}
+final class PayrollPeriodDeleted extends PayrollPeriodEvent {
+  const PayrollPeriodDeleted(this.id); final String id;
+}
 ```
 
-**States:**
-```
-PayrollPeriodState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<PayrollPeriod> periods, String? selectedPeriodId)
-  error(Failure failure)
+**States** — plain sealed classes with Equatable:
+```dart
+sealed class PayrollPeriodState extends Equatable {
+  const PayrollPeriodState();
+  @override List<Object?> get props => [];
+}
+final class PayrollPeriodInitial extends PayrollPeriodState { const PayrollPeriodInitial(); }
+final class PayrollPeriodLoading extends PayrollPeriodState { const PayrollPeriodLoading(); }
+final class PayrollPeriodLoaded extends PayrollPeriodState {
+  const PayrollPeriodLoaded(this.periods, this.selectedPeriodId);
+  final List<PayrollPeriod> periods; final String? selectedPeriodId;
+  @override List<Object?> get props => [periods, selectedPeriodId];
+}
+final class PayrollPeriodError extends PayrollPeriodState {
+  const PayrollPeriodError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **Logic:**
@@ -325,27 +413,55 @@ PayrollPeriodState (sealed/freezed)
 
 Files: `lib/features/payroll/presentation/bloc/payroll_entry_bloc/`
 
-**Events:**
-```
-PayrollEntryEvent (sealed/freezed)
-  PayrollEntriesLoaded(String periodId)
-  PayrollEntriesTrashLoaded(String periodId)
-  PayrollEntrySaveRequested(PayrollEntry entry)
-  PayrollEntryDeleteRequested(String id, String periodId)
-  PayrollEntryRestoreRequested(String id, String periodId)
-  PayrollEntryPermanentDeleteRequested(String id, String periodId)
+**Events** — plain sealed classes:
+```dart
+sealed class PayrollEntryEvent { const PayrollEntryEvent(); }
+final class PayrollEntriesLoaded extends PayrollEntryEvent {
+  const PayrollEntriesLoaded(this.periodId); final String periodId;
+}
+final class PayrollEntriesTrashLoaded extends PayrollEntryEvent {
+  const PayrollEntriesTrashLoaded(this.periodId); final String periodId;
+}
+final class PayrollEntrySaveRequested extends PayrollEntryEvent {
+  const PayrollEntrySaveRequested(this.entry); final PayrollEntry entry;
+}
+final class PayrollEntryDeleteRequested extends PayrollEntryEvent {
+  const PayrollEntryDeleteRequested(this.id, this.periodId);
+  final String id; final String periodId;
+}
+final class PayrollEntryRestoreRequested extends PayrollEntryEvent {
+  const PayrollEntryRestoreRequested(this.id, this.periodId);
+  final String id; final String periodId;
+}
+final class PayrollEntryPermanentDeleteRequested extends PayrollEntryEvent {
+  const PayrollEntryPermanentDeleteRequested(this.id, this.periodId);
+  final String id; final String periodId;
+}
 ```
 
-**States:**
-```
-PayrollEntryState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<PayrollEntry> entries, double periodTotal)
-  trashLoaded(List<PayrollEntry> entries)
-  saving()
-  saveSuccess()
-  error(Failure failure)
+**States** — plain sealed classes with Equatable:
+```dart
+sealed class PayrollEntryState extends Equatable {
+  const PayrollEntryState();
+  @override List<Object?> get props => [];
+}
+final class PayrollEntryInitial extends PayrollEntryState { const PayrollEntryInitial(); }
+final class PayrollEntryLoading extends PayrollEntryState { const PayrollEntryLoading(); }
+final class PayrollEntryLoaded extends PayrollEntryState {
+  const PayrollEntryLoaded(this.entries, this.periodTotal);
+  final List<PayrollEntry> entries; final double periodTotal;
+  @override List<Object?> get props => [entries, periodTotal];
+}
+final class PayrollEntryTrashLoaded extends PayrollEntryState {
+  const PayrollEntryTrashLoaded(this.entries); final List<PayrollEntry> entries;
+  @override List<Object?> get props => [entries];
+}
+final class PayrollEntrySaving extends PayrollEntryState { const PayrollEntrySaving(); }
+final class PayrollEntrySaveSuccess extends PayrollEntryState { const PayrollEntrySaveSuccess(); }
+final class PayrollEntryError extends PayrollEntryState {
+  const PayrollEntryError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 `periodTotal` = sum of `totalPay` for all non-deleted entries in the period.
@@ -426,24 +542,69 @@ EmployeeListTile({ required Employee employee, required VoidCallback onAction })
 
 ## Dependency Injection
 
-Three Hive box modules:
+In `lib/core/di/injection.dart`, register manually:
+
 ```dart
-@module
-abstract class PayrollModule {
-  @lazySingleton
-  Box<EmployeeModel> get employeeBox => Hive.box<EmployeeModel>(HiveBoxNames.employees);
-
-  @lazySingleton
-  Box<PayrollPeriodModel> get periodBox => Hive.box<PayrollPeriodModel>(HiveBoxNames.payrollPeriods);
-
-  @lazySingleton
-  Box<PayrollEntryModel> get entryBox => Hive.box<PayrollEntryModel>(HiveBoxNames.payrollEntries);
-}
+// Payroll — Hive boxes
+getIt.registerLazySingleton<Box<EmployeeModel>>(
+  () => Hive.box<EmployeeModel>(HiveBoxNames.employees),
+);
+getIt.registerLazySingleton<Box<PayrollPeriodModel>>(
+  () => Hive.box<PayrollPeriodModel>(HiveBoxNames.payrollPeriods),
+);
+getIt.registerLazySingleton<Box<PayrollEntryModel>>(
+  () => Hive.box<PayrollEntryModel>(HiveBoxNames.payrollEntries),
+);
+// Data sources
+getIt.registerLazySingleton<EmployeeLocalDataSource>(
+  () => EmployeeLocalDataSourceImpl(getIt()),
+);
+getIt.registerLazySingleton<PayrollPeriodLocalDataSource>(
+  () => PayrollPeriodLocalDataSourceImpl(getIt()),
+);
+getIt.registerLazySingleton<PayrollEntryLocalDataSource>(
+  () => PayrollEntryLocalDataSourceImpl(getIt()),
+);
+// Repositories
+getIt.registerLazySingleton<EmployeeRepository>(
+  () => EmployeeRepositoryImpl(getIt()),
+);
+getIt.registerLazySingleton<PayrollPeriodRepository>(
+  () => PayrollPeriodRepositoryImpl(getIt()),
+);
+getIt.registerLazySingleton<PayrollEntryRepository>(
+  () => PayrollEntryRepositoryImpl(getIt()),
+);
+// Use cases (factories — no shared state)
+getIt.registerFactory(() => GetAllEmployees(getIt()));
+getIt.registerFactory(() => GetActiveEmployees(getIt()));
+getIt.registerFactory(() => SaveEmployee(getIt()));
+getIt.registerFactory(() => DeactivateEmployee(getIt()));
+getIt.registerFactory(() => ReactivateEmployee(getIt()));
+getIt.registerFactory(() => GetAllPeriods(getIt()));
+getIt.registerFactory(() => SavePeriod(getIt()));
+getIt.registerFactory(() => GetCurrentWeekPeriod(getIt()));
+getIt.registerFactory(() => GetEntriesByPeriod(getIt()));
+getIt.registerFactory(() => GetDeletedEntriesByPeriod(getIt()));
+getIt.registerFactory(() => SavePayrollEntry(getIt()));
+getIt.registerFactory(() => SoftDeleteEntry(getIt()));
+getIt.registerFactory(() => RestoreEntry(getIt()));
+getIt.registerFactory(() => PermanentDeleteEntry(getIt()));
+// BLoCs (transient)
+getIt.registerFactory(() => EmployeeBloc(
+  getAllEmployees: getIt(), saveEmployee: getIt(),
+  deactivateEmployee: getIt(), reactivateEmployee: getIt(),
+));
+getIt.registerFactory(() => PayrollPeriodBloc(
+  getAllPeriods: getIt(), savePeriod: getIt(),
+  getCurrentWeekPeriod: getIt(),
+));
+getIt.registerFactory(() => PayrollEntryBloc(
+  getEntriesByPeriod: getIt(), getDeletedEntriesByPeriod: getIt(),
+  savePayrollEntry: getIt(), softDeleteEntry: getIt(),
+  restoreEntry: getIt(), permanentDeleteEntry: getIt(),
+));
 ```
-
-All data sources, repositories, use cases: `@injectable` or `@LazySingleton(as: ...)`.
-
-All three BLoCs: `@injectable` (transient).
 
 ---
 
@@ -473,11 +634,8 @@ lib/features/payroll/domain/usecases/soft_delete_entry.dart
 lib/features/payroll/domain/usecases/restore_entry.dart
 lib/features/payroll/domain/usecases/permanent_delete_entry.dart
 lib/features/payroll/data/models/employee_model.dart
-lib/features/payroll/data/models/employee_model.g.dart              ← generated
 lib/features/payroll/data/models/payroll_period_model.dart
-lib/features/payroll/data/models/payroll_period_model.g.dart        ← generated
 lib/features/payroll/data/models/payroll_entry_model.dart
-lib/features/payroll/data/models/payroll_entry_model.g.dart         ← generated
 lib/features/payroll/data/datasources/employee_local_data_source.dart
 lib/features/payroll/data/datasources/payroll_period_local_data_source.dart
 lib/features/payroll/data/datasources/payroll_entry_local_data_source.dart
@@ -553,7 +711,6 @@ test/features/payroll/presentation/bloc/payroll_entry_bloc_test.dart
 
 ## Verification Checklist
 
-- [ ] `build_runner` generates all 3 `_model.g.dart` files without errors.
 - [ ] Employee list shows Active and Inactive sections correctly.
 - [ ] Deactivating an employee moves them to Inactive section; they no longer appear in entry form picker.
 - [ ] "New Week" creates a Mon–Sun period with correct label; pressing again selects the same period (no duplicate).

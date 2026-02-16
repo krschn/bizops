@@ -1,4 +1,4 @@
-# Plan 01 — Foundation
+# Plan 01 — Foundation DONE
 
 **Objective:** Bootstrap the entire app infrastructure. Every other plan depends on this.
 

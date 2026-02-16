@@ -134,39 +134,95 @@ All in `lib/features/transactions/domain/usecases/`.
 
 **File: `lib/features/transactions/data/models/transaction_line_model.dart`**
 
-```
-@HiveType(typeId: 3)
-TransactionLineModel extends HiveObject
-  @HiveField(0)  id: String
-  @HiveField(1)  transactionId: String
-  @HiveField(2)  supplierId: String
-  @HiveField(3)  supplierName: String
-  @HiveField(4)  productId: String
-  @HiveField(5)  productName: String
-  @HiveField(6)  unit: String
-  @HiveField(7)  quantity: double
-  @HiveField(8)  unitPrice: double
-  @HiveField(9)  lineTotal: double
-  @HiveField(10) isDeleted: bool
-  @HiveField(11) sortOrder: int
+```dart
+class TransactionLineModel extends HiveObject {
+  TransactionLineModel({
+    required this.id, required this.transactionId,
+    required this.supplierId, required this.supplierName,
+    required this.productId, required this.productName,
+    required this.unit, required this.quantity,
+    required this.unitPrice, required this.lineTotal,
+    required this.isDeleted, required this.sortOrder,
+  });
+
+  String id; String transactionId;
+  String supplierId; String supplierName;
+  String productId; String productName;
+  String unit; double quantity;
+  double unitPrice; double lineTotal;
+  bool isDeleted; int sortOrder;
+}
+
+class TransactionLineModelAdapter extends TypeAdapter<TransactionLineModel> {
+  @override final int typeId = 3;
+
+  @override
+  TransactionLineModel read(BinaryReader reader) => TransactionLineModel(
+    id: reader.readString(), transactionId: reader.readString(),
+    supplierId: reader.readString(), supplierName: reader.readString(),
+    productId: reader.readString(), productName: reader.readString(),
+    unit: reader.readString(), quantity: reader.readDouble(),
+    unitPrice: reader.readDouble(), lineTotal: reader.readDouble(),
+    isDeleted: reader.readBool(), sortOrder: reader.readInt(),
+  );
+
+  @override
+  void write(BinaryWriter writer, TransactionLineModel obj) {
+    writer
+      ..writeString(obj.id)..writeString(obj.transactionId)
+      ..writeString(obj.supplierId)..writeString(obj.supplierName)
+      ..writeString(obj.productId)..writeString(obj.productName)
+      ..writeString(obj.unit)..writeDouble(obj.quantity)
+      ..writeDouble(obj.unitPrice)..writeDouble(obj.lineTotal)
+      ..writeBool(obj.isDeleted)..writeInt(obj.sortOrder);
+  }
+}
 ```
 
 **File: `lib/features/transactions/data/models/transaction_model.dart`**
 
-```
-@HiveType(typeId: 4)
-TransactionModel extends HiveObject
-  @HiveField(0) id: String
-  @HiveField(1) transactedAt: DateTime
-  @HiveField(2) lines: List<TransactionLineModel>
-  @HiveField(3) grandTotal: double
-  @HiveField(4) isDeleted: bool
-  @HiveField(5) createdAt: DateTime
-  @HiveField(6) updatedAt: DateTime
+```dart
+class TransactionModel extends HiveObject {
+  TransactionModel({
+    required this.id, required this.transactedAt,
+    required this.lines, required this.grandTotal,
+    required this.isDeleted, required this.createdAt, required this.updatedAt,
+  });
+
+  String id; DateTime transactedAt;
+  List<TransactionLineModel> lines; double grandTotal;
+  bool isDeleted; DateTime createdAt; DateTime updatedAt;
+}
+
+class TransactionModelAdapter extends TypeAdapter<TransactionModel> {
+  @override final int typeId = 4;
+
+  @override
+  TransactionModel read(BinaryReader reader) => TransactionModel(
+    id: reader.readString(),
+    transactedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    lines: reader.readList().cast<TransactionLineModel>(),
+    grandTotal: reader.readDouble(),
+    isDeleted: reader.readBool(),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+  );
+
+  @override
+  void write(BinaryWriter writer, TransactionModel obj) {
+    writer
+      ..writeString(obj.id)
+      ..writeInt(obj.transactedAt.millisecondsSinceEpoch)
+      ..writeList(obj.lines)
+      ..writeDouble(obj.grandTotal)
+      ..writeBool(obj.isDeleted)
+      ..writeInt(obj.createdAt.millisecondsSinceEpoch)
+      ..writeInt(obj.updatedAt.millisecondsSinceEpoch);
+  }
+}
 ```
 
-- Lines are embedded (nested) inside `TransactionModel` — no separate box for lines.
-- Both models provide `toEntity()` / `fromEntity()` mapping.
+No `@HiveType`/`@HiveField` annotations. No generated `.g.dart` files. Lines are embedded (nested) inside `TransactionModel` — no separate box for lines. Both models provide `toEntity()` / `fromEntity()` mapping.
 
 ### Data Source
 
@@ -217,24 +273,45 @@ File: `lib/features/transactions/data/repositories/transaction_repository_impl.d
 
 Files: `lib/features/transactions/presentation/bloc/transaction_list_bloc/`
 
-**Events:**
-```
-TransactionListEvent (sealed/freezed)
-  TransactionsLoaded()
-  TransactionsTrashLoaded()
-  TransactionDeleteRequested(String id)
-  TransactionRestoreRequested(String id)
-  TransactionPermanentDeleteRequested(String id)
+**Events** — plain sealed classes:
+```dart
+sealed class TransactionListEvent { const TransactionListEvent(); }
+final class TransactionsLoaded extends TransactionListEvent { const TransactionsLoaded(); }
+final class TransactionsTrashLoaded extends TransactionListEvent { const TransactionsTrashLoaded(); }
+final class TransactionDeleteRequested extends TransactionListEvent {
+  const TransactionDeleteRequested(this.id); final String id;
+}
+final class TransactionRestoreRequested extends TransactionListEvent {
+  const TransactionRestoreRequested(this.id); final String id;
+}
+final class TransactionPermanentDeleteRequested extends TransactionListEvent {
+  const TransactionPermanentDeleteRequested(this.id); final String id;
+}
 ```
 
-**States:**
-```
-TransactionListState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<Transaction> transactions)
-  trashLoaded(List<Transaction> transactions)
-  error(Failure failure)
+**States** — plain sealed classes with Equatable:
+```dart
+sealed class TransactionListState extends Equatable {
+  const TransactionListState();
+  @override List<Object?> get props => [];
+}
+final class TransactionListInitial extends TransactionListState { const TransactionListInitial(); }
+final class TransactionListLoading extends TransactionListState { const TransactionListLoading(); }
+final class TransactionListLoaded extends TransactionListState {
+  const TransactionListLoaded(this.transactions);
+  final List<Transaction> transactions;
+  @override List<Object?> get props => [transactions];
+}
+final class TransactionListTrashLoaded extends TransactionListState {
+  const TransactionListTrashLoaded(this.transactions);
+  final List<Transaction> transactions;
+  @override List<Object?> get props => [transactions];
+}
+final class TransactionListError extends TransactionListState {
+  const TransactionListError(this.failure);
+  final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **BLoC logic:**
@@ -248,31 +325,57 @@ TransactionListState (sealed/freezed)
 
 Files: `lib/features/transactions/presentation/bloc/transaction_form_bloc/`
 
-**Events:**
-```
-TransactionFormEvent (sealed/freezed)
-  TransactionFormInitialized(String? existingTransactionId)
-  TransactionLineAdded(TransactionLine line)
-  TransactionLineRemoved(String lineId)           ← soft-delete during editing
-  TransactionLineRestored(String lineId)          ← restore during editing
-  TransactionSaveRequested()
+**Events** — plain sealed classes:
+```dart
+sealed class TransactionFormEvent { const TransactionFormEvent(); }
+final class TransactionFormInitialized extends TransactionFormEvent {
+  const TransactionFormInitialized(this.existingTransactionId);
+  final String? existingTransactionId;
+}
+final class TransactionLineAdded extends TransactionFormEvent {
+  const TransactionLineAdded(this.line); final TransactionLine line;
+}
+final class TransactionLineRemoved extends TransactionFormEvent {
+  const TransactionLineRemoved(this.lineId); final String lineId;
+}
+final class TransactionLineRestored extends TransactionFormEvent {
+  const TransactionLineRestored(this.lineId); final String lineId;
+}
+final class TransactionSaveRequested extends TransactionFormEvent {
+  const TransactionSaveRequested();
+}
 ```
 
-**States:**
-```
-TransactionFormState (sealed/freezed)
-  initial()
-  loading()
-  ready {
-    Transaction? existingTransaction
-    List<TransactionLine> lines           ← draft lines (may include deleted)
-    List<Product> availableProducts       ← active products for picker
-    List<Supplier> availableSuppliers     ← active suppliers for picker
-    double grandTotal
-  }
-  saving()
-  saveSuccess(String transactionId)
-  error(Failure failure)
+**States** — plain sealed classes with Equatable:
+```dart
+sealed class TransactionFormState extends Equatable {
+  const TransactionFormState();
+  @override List<Object?> get props => [];
+}
+final class TransactionFormInitial extends TransactionFormState { const TransactionFormInitial(); }
+final class TransactionFormLoading extends TransactionFormState { const TransactionFormLoading(); }
+final class TransactionFormReady extends TransactionFormState {
+  const TransactionFormReady({
+    this.existingTransaction, required this.lines,
+    required this.availableProducts, required this.availableSuppliers,
+    required this.grandTotal,
+  });
+  final Transaction? existingTransaction;
+  final List<TransactionLine> lines;
+  final List<Product> availableProducts;
+  final List<Supplier> availableSuppliers;
+  final double grandTotal;
+  @override List<Object?> get props => [existingTransaction, lines, availableProducts, availableSuppliers, grandTotal];
+}
+final class TransactionFormSaving extends TransactionFormState { const TransactionFormSaving(); }
+final class TransactionFormSaveSuccess extends TransactionFormState {
+  const TransactionFormSaveSuccess(this.transactionId); final String transactionId;
+  @override List<Object?> get props => [transactionId];
+}
+final class TransactionFormError extends TransactionFormState {
+  const TransactionFormError(this.failure); final Failure failure;
+  @override List<Object?> get props => [failure];
+}
 ```
 
 **BLoC logic:**
@@ -375,19 +478,38 @@ TransactionTotalBar({ required double grandTotal })
 
 ## Dependency Injection
 
-`Box<TransactionModel>` — register in DI module:
+In `lib/core/di/injection.dart`, register manually:
+
 ```dart
-@module
-abstract class TransactionsModule {
-  @lazySingleton
-  Box<TransactionModel> get transactionBox =>
-      Hive.box<TransactionModel>(HiveBoxNames.transactions);
-}
+// Transactions
+getIt.registerLazySingleton<Box<TransactionModel>>(
+  () => Hive.box<TransactionModel>(HiveBoxNames.transactions),
+);
+getIt.registerLazySingleton<TransactionLocalDataSource>(
+  () => TransactionLocalDataSourceImpl(getIt()),
+);
+getIt.registerLazySingleton<TransactionRepository>(
+  () => TransactionRepositoryImpl(getIt()),
+);
+getIt.registerFactory(() => GetTransactions(getIt()));
+getIt.registerFactory(() => GetDeletedTransactions(getIt()));
+getIt.registerFactory(() => SaveTransaction(getIt()));
+getIt.registerFactory(() => SoftDeleteTransaction(getIt()));
+getIt.registerFactory(() => RestoreTransaction(getIt()));
+getIt.registerFactory(() => PermanentDeleteTransaction(getIt()));
+getIt.registerFactory(() => SoftDeleteLine(getIt()));
+getIt.registerFactory(() => RestoreLine(getIt()));
+getIt.registerFactory(() => GetTransactionsByDateRange(getIt()));
+getIt.registerFactory(() => TransactionListBloc(
+  getTransactions: getIt(), getDeletedTransactions: getIt(),
+  softDeleteTransaction: getIt(), restoreTransaction: getIt(),
+  permanentDeleteTransaction: getIt(),
+));
+getIt.registerFactory(() => TransactionFormBloc(
+  getProducts: getIt(), getSuppliers: getIt(),
+  saveTransaction: getIt(), softDeleteLine: getIt(), restoreLine: getIt(),
+));
 ```
-
-All data sources, repositories, use cases: `@injectable` or `@LazySingleton(as: ...)`.
-
-`TransactionListBloc`, `TransactionFormBloc`: `@injectable` (transient).
 
 ---
 
@@ -408,9 +530,7 @@ lib/features/transactions/domain/usecases/soft_delete_line.dart
 lib/features/transactions/domain/usecases/restore_line.dart
 lib/features/transactions/domain/usecases/get_transactions_by_date_range.dart
 lib/features/transactions/data/models/transaction_line_model.dart
-lib/features/transactions/data/models/transaction_line_model.g.dart      ← generated
 lib/features/transactions/data/models/transaction_model.dart
-lib/features/transactions/data/models/transaction_model.g.dart           ← generated
 lib/features/transactions/data/datasources/transaction_local_data_source.dart
 lib/features/transactions/data/repositories/transaction_repository_impl.dart
 lib/features/transactions/presentation/bloc/transaction_list_bloc/transaction_list_event.dart
@@ -470,7 +590,6 @@ test/features/transactions/presentation/bloc/transaction_form_bloc_test.dart
 
 ## Verification Checklist
 
-- [ ] `build_runner` generates both `_model.g.dart` files without errors.
 - [ ] Creating a transaction with at least one line saves and appears in list.
 - [ ] Attempting to save with zero lines shows validation error.
 - [ ] Grand total updates as lines are added/removed during form editing.

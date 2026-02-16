@@ -44,7 +44,7 @@ lib/
 **Functional programming:**
 - Use `Either<Failure, T>` for all fallible operations across layer boundaries — never throw exceptions.
 - Use cases return `Either` or `Stream`/`TaskEither`. No void use cases that silently fail.
-- Domain entities and BLoC states must be immutable (`freezed` or `equatable`).
+- Domain entities, BLoC states, and `Failure` types must be immutable and implement `Equatable` — `==` must work correctly for `bloc_test` state comparisons.
 
 **BLoC:**
 - One BLoC per feature screen or major logical unit.
@@ -64,6 +64,14 @@ lib/
 **Repository pattern:**
 - Domain defines the interface; data layer implements it.
 - Data sources (remote/local) are injected into repository implementations, never accessed directly from BLoC.
+
+**No code generation:**
+- There is no `build_runner`, `freezed`, `injectable_generator`, `hive_generator`, `freezed_annotation`, or `injectable` in this project.
+- Do **not** add or suggest these packages. All code is handwritten.
+- Sealed classes replace `@freezed`: use `sealed class` + `final class` subclasses.
+- Hive models use handwritten `TypeAdapter` subclasses in the same file — no `@HiveType`/`@HiveField`.
+- DI uses direct `getIt.registerLazySingleton` / `getIt.registerFactory` calls — no `@injectable` annotations.
+- `Equatable` (already a dependency) replaces freezed's generated `==`/`hashCode` everywhere: entities, BLoC states, and `Failure`.
 
 ## Testing
 

@@ -33,8 +33,9 @@ Supplier (immutable, equatable)
   updatedAt: DateTime
 ```
 
-- Immutable via `const` constructor or `freezed`.
-- Equality based on all fields.
+- Immutable via `const` constructor.
+- Implements `Equatable` — equality based on all fields.
+- `copyWith(...)` method for field updates.
 - No framework dependencies.
 
 ### Repository Interface
@@ -80,20 +81,61 @@ Each use case is a class with a single `call(...)` method. Injected via construc
 
 File: `lib/features/suppliers/data/models/supplier_model.dart`
 
-```
-@HiveType(typeId: 2)
-SupplierModel extends HiveObject
-  @HiveField(0) id: String
-  @HiveField(1) name: String
-  @HiveField(2) isDeleted: bool
-  @HiveField(3) createdAt: DateTime
-  @HiveField(4) updatedAt: DateTime
+```dart
+class SupplierModel extends HiveObject {
+  SupplierModel({
+    required this.id,
+    required this.name,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  String id;
+  String name;
+  bool isDeleted;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  Supplier toEntity() => Supplier(
+    id: id, name: name,
+    isDeleted: isDeleted, createdAt: createdAt, updatedAt: updatedAt,
+  );
+
+  static SupplierModel fromEntity(Supplier s) => SupplierModel(
+    id: s.id, name: s.name,
+    isDeleted: s.isDeleted, createdAt: s.createdAt, updatedAt: s.updatedAt,
+  );
+}
+
+class SupplierModelAdapter extends TypeAdapter<SupplierModel> {
+  @override
+  final int typeId = 2;
+
+  @override
+  SupplierModel read(BinaryReader reader) {
+    return SupplierModel(
+      id: reader.readString(),
+      name: reader.readString(),
+      isDeleted: reader.readBool(),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, SupplierModel obj) {
+    writer
+      ..writeString(obj.id)
+      ..writeString(obj.name)
+      ..writeBool(obj.isDeleted)
+      ..writeInt(obj.createdAt.millisecondsSinceEpoch)
+      ..writeInt(obj.updatedAt.millisecondsSinceEpoch);
+  }
+}
 ```
 
-**Critical:** `typeId: 2` — must not clash with `ProductModel` (typeId: 1).
-
-- Run `dart run build_runner build` to generate `supplier_model.g.dart`.
-- Provides `toEntity()` → `Supplier` and a static/factory `fromEntity(Supplier)` → `SupplierModel`.
+**Critical:** `typeId: 2` — must not clash with `ProductModel` (typeId: 1). No `@HiveType`/`@HiveField` annotations. No generated `.g.dart` file.
 
 ### Data Source
 
@@ -136,34 +178,79 @@ File: `lib/features/suppliers/data/repositories/supplier_repository_impl.dart`
 
 Files in `lib/features/suppliers/presentation/bloc/`:
 
-**Events** (`supplier_event.dart`):
-```
-SupplierEvent (sealed/freezed)
-  SuppliersLoaded()
-  SuppliersTrashLoaded()
-  SupplierSaveRequested(Supplier supplier)
-  SupplierDeleteRequested(String id)
-  SupplierRestoreRequested(String id)
-  SupplierPermanentDeleteRequested(String id)
+**Events** (`supplier_event.dart`) — plain sealed classes:
+```dart
+sealed class SupplierEvent {
+  const SupplierEvent();
+}
+final class SuppliersLoaded extends SupplierEvent {
+  const SuppliersLoaded();
+}
+final class SuppliersTrashLoaded extends SupplierEvent {
+  const SuppliersTrashLoaded();
+}
+final class SupplierSaveRequested extends SupplierEvent {
+  const SupplierSaveRequested(this.supplier);
+  final Supplier supplier;
+}
+final class SupplierDeleteRequested extends SupplierEvent {
+  const SupplierDeleteRequested(this.id);
+  final String id;
+}
+final class SupplierRestoreRequested extends SupplierEvent {
+  const SupplierRestoreRequested(this.id);
+  final String id;
+}
+final class SupplierPermanentDeleteRequested extends SupplierEvent {
+  const SupplierPermanentDeleteRequested(this.id);
+  final String id;
+}
 ```
 
-**States** (`supplier_state.dart`):
-```
-SupplierState (sealed/freezed)
-  initial()
-  loading()
-  loaded(List<Supplier> suppliers)
-  trashLoaded(List<Supplier> suppliers)
-  saving()
-  saveSuccess()
-  error(Failure failure)
+**States** (`supplier_state.dart`) — plain sealed classes with Equatable:
+```dart
+sealed class SupplierState extends Equatable {
+  const SupplierState();
+  @override
+  List<Object?> get props => [];
+}
+final class SupplierInitial extends SupplierState {
+  const SupplierInitial();
+}
+final class SupplierLoading extends SupplierState {
+  const SupplierLoading();
+}
+final class SupplierLoaded extends SupplierState {
+  const SupplierLoaded(this.suppliers);
+  final List<Supplier> suppliers;
+  @override
+  List<Object?> get props => [suppliers];
+}
+final class SupplierTrashLoaded extends SupplierState {
+  const SupplierTrashLoaded(this.suppliers);
+  final List<Supplier> suppliers;
+  @override
+  List<Object?> get props => [suppliers];
+}
+final class SupplierSaving extends SupplierState {
+  const SupplierSaving();
+}
+final class SupplierSaveSuccess extends SupplierState {
+  const SupplierSaveSuccess();
+}
+final class SupplierError extends SupplierState {
+  const SupplierError(this.failure);
+  final Failure failure;
+  @override
+  List<Object?> get props => [failure];
+}
 ```
 
 **BLoC** (`supplier_bloc.dart`):
 - Injects: `GetSuppliers`, `GetDeletedSuppliers`, `SaveSupplier`, `SoftDeleteSupplier`, `RestoreSupplier`, `PermanentDeleteSupplier`.
-- `on<SuppliersLoaded>` — emits `loading()`, calls `GetSuppliers`, emits `loaded(suppliers)` or `error(failure)`.
-- `on<SuppliersTrashLoaded>` — emits `loading()`, calls `GetDeletedSuppliers`, emits `trashLoaded(suppliers)` or `error(failure)`.
-- `on<SupplierSaveRequested>` — emits `saving()`, calls `SaveSupplier`, emits `saveSuccess()` or `error(failure)`.
+- `on<SuppliersLoaded>` — emits `SupplierLoading()`, calls `GetSuppliers`, emits `SupplierLoaded(suppliers)` or `SupplierError(failure)`.
+- `on<SuppliersTrashLoaded>` — emits `SupplierLoading()`, calls `GetDeletedSuppliers`, emits `SupplierTrashLoaded(suppliers)` or `SupplierError(failure)`.
+- `on<SupplierSaveRequested>` — emits `SupplierSaving()`, calls `SaveSupplier`, emits `SupplierSaveSuccess()` or `SupplierError(failure)`.
 - `on<SupplierDeleteRequested>` — calls `SoftDeleteSupplier`, then re-adds `SuppliersLoaded()`.
 - `on<SupplierRestoreRequested>` — calls `RestoreSupplier`, then re-adds `SuppliersTrashLoaded()`.
 - `on<SupplierPermanentDeleteRequested>` — calls `PermanentDeleteSupplier`, then re-adds `SuppliersTrashLoaded()`.
@@ -177,12 +264,12 @@ SupplierState (sealed/freezed)
 - Provides `SupplierBloc` via `BlocProvider`.
 - On init, adds `SuppliersLoaded()`.
 - On tab switch to Trash, adds `SuppliersTrashLoaded()`.
-- Active tab: `BlocBuilder` on `loaded` state → `ListView` of `SupplierListTile`.
+- Active tab: `BlocBuilder` on `SupplierLoaded` state → `ListView` of `SupplierListTile`.
   - On delete: shows `ConfirmDeleteDialog`, on confirm adds `SupplierDeleteRequested(id)`.
-- Trash tab: `BlocBuilder` on `trashLoaded` state → `ListView` of `SupplierTrashTile`.
+- Trash tab: `BlocBuilder` on `SupplierTrashLoaded` state → `ListView` of `SupplierTrashTile`.
 - FAB: navigates to `/suppliers/new`.
-- Shows `AppLoadingWidget` on `loading` state.
-- Shows `AppErrorWidget` on `error` state with retry.
+- Shows `AppLoadingWidget` on `SupplierLoading` state.
+- Shows `AppErrorWidget` on `SupplierError` state with retry.
 - Shows `AppEmptyStateWidget` when list is empty.
 
 **`lib/features/suppliers/presentation/pages/supplier_form_page.dart`**
@@ -194,10 +281,10 @@ SupplierState (sealed/freezed)
 - Save button: adds `SupplierSaveRequested(supplier)` where `supplier` is:
   - New: `Supplier(id: uuid, name: ..., isDeleted: false, createdAt: now, updatedAt: now)`.
   - Edit: existing supplier `copyWith(name: ..., updatedAt: now)`.
-- On `saveSuccess` state: `context.pop()`.
-- On `error` state: show `SnackBar` with failure message.
+- On `SupplierSaveSuccess` state: `context.pop()`.
+- On `SupplierError` state: show `SnackBar` with failure message.
 - Uses `LabeledField` for the name field.
-- Uses `PrimaryButton` for save, with `isLoading: true` during `saving` state.
+- Uses `PrimaryButton` for save, with `isLoading: true` during `SupplierSaving` state.
 
 ### Widgets
 
@@ -220,27 +307,34 @@ SupplierTrashTile({ required Supplier supplier, required VoidCallback onRestore,
 
 ## Dependency Injection Registration
 
-In `lib/features/suppliers/data/datasources/supplier_local_data_source.dart`:
-- `@LazySingleton(as: SupplierLocalDataSource)` on `SupplierLocalDataSourceImpl`.
+In `lib/core/di/injection.dart`, register manually:
 
-In `lib/features/suppliers/data/repositories/supplier_repository_impl.dart`:
-- `@LazySingleton(as: SupplierRepository)` on `SupplierRepositoryImpl`.
-
-In each use case:
-- `@injectable` annotation.
-
-`SupplierBloc`:
-- `@injectable` annotation (transient).
-
-`Box<SupplierModel>`:
-- Register in a DI module:
-  ```dart
-  @module
-  abstract class SuppliersModule {
-    @lazySingleton
-    Box<SupplierModel> get supplierBox => Hive.box<SupplierModel>(HiveBoxNames.suppliers);
-  }
-  ```
+```dart
+// Suppliers
+getIt.registerLazySingleton<Box<SupplierModel>>(
+  () => Hive.box<SupplierModel>(HiveBoxNames.suppliers),
+);
+getIt.registerLazySingleton<SupplierLocalDataSource>(
+  () => SupplierLocalDataSourceImpl(getIt()),
+);
+getIt.registerLazySingleton<SupplierRepository>(
+  () => SupplierRepositoryImpl(getIt()),
+);
+getIt.registerFactory(() => GetSuppliers(getIt()));
+getIt.registerFactory(() => GetDeletedSuppliers(getIt()));
+getIt.registerFactory(() => SaveSupplier(getIt()));
+getIt.registerFactory(() => SoftDeleteSupplier(getIt()));
+getIt.registerFactory(() => RestoreSupplier(getIt()));
+getIt.registerFactory(() => PermanentDeleteSupplier(getIt()));
+getIt.registerFactory(() => SupplierBloc(
+  getSuppliers: getIt(),
+  getDeletedSuppliers: getIt(),
+  saveSupplier: getIt(),
+  softDeleteSupplier: getIt(),
+  restoreSupplier: getIt(),
+  permanentDeleteSupplier: getIt(),
+));
+```
 
 ---
 
@@ -256,7 +350,6 @@ lib/features/suppliers/domain/usecases/soft_delete_supplier.dart
 lib/features/suppliers/domain/usecases/restore_supplier.dart
 lib/features/suppliers/domain/usecases/permanent_delete_supplier.dart
 lib/features/suppliers/data/models/supplier_model.dart
-lib/features/suppliers/data/models/supplier_model.g.dart          ← generated
 lib/features/suppliers/data/datasources/supplier_local_data_source.dart
 lib/features/suppliers/data/repositories/supplier_repository_impl.dart
 lib/features/suppliers/presentation/bloc/supplier_event.dart
@@ -298,9 +391,9 @@ test/features/suppliers/presentation/bloc/supplier_bloc_test.dart
 
 ### BLoC Tests (use `bloc_test`, mock all use cases)
 
-- `SuppliersLoaded` → emits `[loading(), loaded(suppliers)]`.
-- `SuppliersLoaded` when use case fails → emits `[loading(), error(failure)]`.
-- `SupplierSaveRequested` valid → emits `[saving(), saveSuccess()]`.
+- `SuppliersLoaded` → emits `[SupplierLoading(), SupplierLoaded(suppliers)]`.
+- `SuppliersLoaded` when use case fails → emits `[SupplierLoading(), SupplierError(failure)]`.
+- `SupplierSaveRequested` valid → emits `[SupplierSaving(), SupplierSaveSuccess()]`.
 - `SupplierDeleteRequested` → calls `SoftDeleteSupplier`, then re-loads active list.
 - `SupplierRestoreRequested` → calls `RestoreSupplier`, then re-loads trash list.
 - `SupplierPermanentDeleteRequested` → calls `PermanentDeleteSupplier`, then re-loads trash list.
@@ -316,7 +409,6 @@ test/features/suppliers/presentation/bloc/supplier_bloc_test.dart
 
 ## Verification Checklist
 
-- [ ] `build_runner` generates `supplier_model.g.dart` without errors.
 - [ ] Supplier list shows active suppliers; Trash tab shows soft-deleted suppliers.
 - [ ] Creating a supplier with empty name shows validation error (SnackBar or inline).
 - [ ] Soft-deleting moves supplier to Trash tab; no longer appears in active list.

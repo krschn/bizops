@@ -76,3 +76,127 @@ Tests mirror the `lib/` structure under `test/`. Each layer is tested in isolati
 - **Widgets** — use `flutter_test`; provide a mocked BLoC via `MockBloc` from `bloc_test`.
 
 All mocks are generated with `mockito` (or `mocktail`) and kept alongside their test file, not in a shared mocks directory.
+
+## Design System
+
+### Philosophy
+
+Minimalist and modern. The UI uses restraint — whitespace does the heavy lifting. Color is used sparingly; Navy Blue is the single accent that signals action and brand identity. Everything else is black, white, and neutral greys.
+
+### Color Palette
+
+Defined in `lib/core/theme/app_colors.dart` as `Color` constants. No other color values may be introduced — all UI must reference these tokens.
+
+```
+// Backgrounds
+background     = #FFFFFF   (pure white — scaffold, page backgrounds)
+surface        = #F8F8FA   (off-white — cards, input fills, bottom nav)
+surfaceVariant = #F0F0F5   (slightly deeper — dividers, inactive areas)
+
+// Navy Blue — primary accent (used sparingly)
+primary        = #1B2A4A   (deep navy — primary buttons, active nav, links)
+primaryLight   = #2E4270   (medium navy — pressed/hover states on navy elements)
+primaryMuted   = #E8EBF2   (navy tint — selected chip background, subtle highlights)
+
+// Text
+textPrimary    = #0D0D0D   (near-black — headings, body text)
+textSecondary  = #6B7280   (grey — subtitles, hints, metadata)
+textDisabled   = #B0B7C3   (light grey — disabled labels, placeholders)
+textOnPrimary  = #FFFFFF   (white — text/icons on navy backgrounds)
+
+// Borders & Dividers
+divider        = #E5E7EB   (light grey — list dividers, card outlines)
+border         = #D1D5DB   (mid grey — input borders, unfocused fields)
+
+// Semantic
+error          = #C0392B   (red — errors, destructive actions)
+errorSurface   = #FDEDED   (light red — error backgrounds)
+success        = #1A7A4A   (dark green — success states)
+warning        = #B45309   (amber-brown — warnings)
+
+// Trash / Soft-delete
+trashAccent    = #9CA3AF   (medium grey — deleted/muted state indicators)
+```
+
+### Typography
+
+Use the system font stack (no custom font packages). Flutter's default `Typography.blackMountainView` base is sufficient.
+
+| Role | Style |
+|---|---|
+| Page title (AppBar) | `titleLarge` — 20sp, weight 600, `textPrimary` |
+| Section heading | `titleMedium` — 16sp, weight 600, `textPrimary` |
+| Body / list primary | `bodyMedium` — 14sp, weight 400, `textPrimary` |
+| Subtitle / metadata | `bodySmall` — 12sp, weight 400, `textSecondary` |
+| Button label | `labelLarge` — 14sp, weight 600, `textOnPrimary` or `primary` |
+| Caption / hint | `labelSmall` — 11sp, weight 400, `textDisabled` |
+
+No italic. No decorative weights. Line height: 1.4–1.5× default.
+
+### Component Rules
+
+**AppBar**
+- Background: `background` (white).
+- Elevation: 0. A single `divider`-colored bottom border (1px) separates it from content.
+- Title: `textPrimary`, weight 600.
+- Icons/actions: `textPrimary`.
+
+**Bottom Navigation Bar**
+- Background: `surface`.
+- Selected item: `primary` (navy) icon + label.
+- Unselected item: `textDisabled` icon, no label.
+- Top border: 1px `divider`. No elevation shadow.
+
+**Buttons**
+- Primary (`PrimaryButton`): filled `primary` navy background, white label, 12px border radius, 48px height minimum, no elevation.
+- Destructive action (e.g. "Delete" in dialogs): `error` color text, no fill (text button style).
+- Secondary / ghost: transparent background, `primary` navy text, `border`-colored outline.
+
+**Cards**
+- Background: `surface`. Border: 1px `divider`. Border radius: 12px. Elevation: 0.
+- Use `Card` with `clipBehavior: Clip.antiAlias`.
+
+**Input Fields**
+- Fill: `surface`. Border: 1px `border`, radius 8px.
+- Focused border: 1.5px `primary` navy.
+- Error border: 1px `error`.
+- Label above field (via `LabeledField`), not floating inside.
+
+**List Tiles**
+- No default `ListTile` dividers — use explicit `Divider(color: divider, height: 1)` between items.
+- Leading icons: `textSecondary`. Trailing action icons: `textSecondary`.
+
+**Chips (period selector)**
+- Selected: `primary` fill, `textOnPrimary` label.
+- Unselected: `primaryMuted` fill, `primary` label.
+
+**Dialogs**
+- Background: `background`. Border radius: 16px.
+- Title: `textPrimary` weight 600. Body: `textSecondary`.
+- Confirm/destructive action: `error` text. Cancel: `textSecondary` text.
+
+**Trash / deleted states**
+- Text: `trashAccent` (strike-through optional).
+- Background: `surfaceVariant`.
+- Restore icon: `primary` navy. Permanent delete icon: `error`.
+
+**Segmented Button (report period tabs)**
+- Selected segment: `primary` fill, `textOnPrimary` label.
+- Unselected: `surface` fill, `textSecondary` label.
+- Border: `border` color.
+
+### Spacing & Layout
+
+- Base unit: 8px. All padding/margin values are multiples of 8 (8, 16, 24, 32).
+- Page horizontal padding: 16px.
+- Card internal padding: 16px.
+- Between list items: 0px gap (rely on dividers) or 8px gap (card lists).
+- FAB: `primary` navy background, white icon, no label text.
+
+### What NOT to do
+
+- Do not introduce additional colors outside the palette above.
+- Do not use `Colors.blue`, `Colors.grey[300]`, or any Material color swatch directly — always reference `AppColors` tokens.
+- Do not use gradients, shadows (elevation > 0 on cards/buttons), or blur effects.
+- Do not use rounded corners larger than 16px on any component.
+- Do not use animations beyond Flutter's default route transitions.

@@ -12,7 +12,6 @@ import '../bloc/product_bloc.dart';
 import '../bloc/product_event.dart';
 import '../bloc/product_state.dart';
 import '../widgets/product_list_tile.dart';
-import '../widgets/product_trash_tile.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -21,33 +20,18 @@ class ProductListPage extends StatefulWidget {
   State<ProductListPage> createState() => _ProductListPageState();
 }
 
-class _ProductListPageState extends State<ProductListPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _ProductListPageState extends State<ProductListPage> {
   late final ProductBloc _bloc;
 
   @override
   void initState() {
     super.initState();
     _bloc = getIt<ProductBloc>();
-    _tabController = TabController(length: 2, vsync: this);
     _bloc.add(const ProductsLoaded());
-    _tabController.addListener(_onTabChanged);
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    if (_tabController.index == 0) {
-      _bloc.add(const ProductsLoaded());
-    } else {
-      _bloc.add(const ProductsTrashLoaded());
-    }
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     _bloc.close();
     super.dispose();
   }
@@ -62,33 +46,12 @@ class _ProductListPageState extends State<ProductListPage>
           backgroundColor: AppColors.background,
           elevation: 0,
           title: const Text('Products'),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(49),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(color: AppColors.divider, height: 1, thickness: 1),
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textDisabled,
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'Active'),
-                    Tab(text: 'Trash'),
-                  ],
-                ),
-              ],
-            ),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
+            child: Divider(color: AppColors.divider, height: 1, thickness: 1),
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _ActiveTab(bloc: _bloc),
-            _TrashTab(bloc: _bloc),
-          ],
-        ),
+        body: _ActiveList(bloc: _bloc),
         floatingActionButton: FloatingActionButton(
           backgroundColor: AppColors.primary,
           onPressed: () async {
@@ -104,8 +67,8 @@ class _ProductListPageState extends State<ProductListPage>
   }
 }
 
-class _ActiveTab extends StatelessWidget {
-  const _ActiveTab({required this.bloc});
+class _ActiveList extends StatelessWidget {
+  const _ActiveList({required this.bloc});
 
   final ProductBloc bloc;
 
@@ -158,46 +121,6 @@ class _ActiveTab extends StatelessWidget {
           _ => const AppEmptyStateWidget(
               message: 'No products yet. Tap + to add one.',
             ),
-        };
-      },
-    );
-  }
-}
-
-class _TrashTab extends StatelessWidget {
-  const _TrashTab({required this.bloc});
-
-  final ProductBloc bloc;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ProductBloc, ProductState>(
-      bloc: bloc,
-      builder: (context, state) {
-        return switch (state) {
-          ProductLoading() => const AppLoadingWidget(),
-          ProductTrashLoaded(products: final products) when products.isEmpty =>
-            const AppEmptyStateWidget(message: 'Trash is empty.'),
-          ProductTrashLoaded(products: final products) => ListView.separated(
-              itemCount: products.length,
-              separatorBuilder: (context, i) =>
-                  const Divider(color: AppColors.divider, height: 1),
-              itemBuilder: (context, index) {
-                final product = products[index];
-                return ProductTrashTile(
-                  product: product,
-                  onRestore: () =>
-                      bloc.add(ProductRestoreRequested(product.id)),
-                  onPermanentDelete: () =>
-                      bloc.add(ProductPermanentDeleteRequested(product.id)),
-                );
-              },
-            ),
-          ProductError(message: final message) => AppErrorWidget(
-              message: message,
-              onRetry: () => bloc.add(const ProductsTrashLoaded()),
-            ),
-          _ => const AppEmptyStateWidget(message: 'Trash is empty.'),
         };
       },
     );

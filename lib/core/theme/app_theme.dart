@@ -41,6 +41,7 @@ abstract class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
+        hintStyle: const TextStyle(color: AppColors.textDisabled),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.border),

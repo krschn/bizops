@@ -12,7 +12,6 @@ import '../bloc/supplier_bloc.dart';
 import '../bloc/supplier_event.dart';
 import '../bloc/supplier_state.dart';
 import '../widgets/supplier_list_tile.dart';
-import '../widgets/supplier_trash_tile.dart';
 
 class SupplierListPage extends StatefulWidget {
   const SupplierListPage({super.key});
@@ -21,33 +20,18 @@ class SupplierListPage extends StatefulWidget {
   State<SupplierListPage> createState() => _SupplierListPageState();
 }
 
-class _SupplierListPageState extends State<SupplierListPage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _SupplierListPageState extends State<SupplierListPage> {
   late final SupplierBloc _bloc;
 
   @override
   void initState() {
     super.initState();
     _bloc = getIt<SupplierBloc>();
-    _tabController = TabController(length: 2, vsync: this);
     _bloc.add(const SuppliersLoaded());
-    _tabController.addListener(_onTabChanged);
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    if (_tabController.index == 0) {
-      _bloc.add(const SuppliersLoaded());
-    } else {
-      _bloc.add(const SuppliersTrashLoaded());
-    }
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     _bloc.close();
     super.dispose();
   }
@@ -62,33 +46,12 @@ class _SupplierListPageState extends State<SupplierListPage>
           backgroundColor: AppColors.background,
           elevation: 0,
           title: const Text('Suppliers'),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(49),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(color: AppColors.divider, height: 1, thickness: 1),
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: AppColors.textDisabled,
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'Active'),
-                    Tab(text: 'Trash'),
-                  ],
-                ),
-              ],
-            ),
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
+            child: Divider(color: AppColors.divider, height: 1, thickness: 1),
           ),
         ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _ActiveTab(bloc: _bloc),
-            _TrashTab(bloc: _bloc),
-          ],
-        ),
+        body: _ActiveList(bloc: _bloc),
         floatingActionButton: FloatingActionButton(
           backgroundColor: AppColors.primary,
           onPressed: () async {
@@ -104,8 +67,8 @@ class _SupplierListPageState extends State<SupplierListPage>
   }
 }
 
-class _ActiveTab extends StatelessWidget {
-  const _ActiveTab({required this.bloc});
+class _ActiveList extends StatelessWidget {
+  const _ActiveList({required this.bloc});
 
   final SupplierBloc bloc;
 
@@ -158,48 +121,6 @@ class _ActiveTab extends StatelessWidget {
           _ => const AppEmptyStateWidget(
               message: 'No suppliers yet. Tap + to add one.',
             ),
-        };
-      },
-    );
-  }
-}
-
-class _TrashTab extends StatelessWidget {
-  const _TrashTab({required this.bloc});
-
-  final SupplierBloc bloc;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<SupplierBloc, SupplierState>(
-      bloc: bloc,
-      builder: (context, state) {
-        return switch (state) {
-          SupplierLoading() => const AppLoadingWidget(),
-          SupplierTrashLoaded(suppliers: final suppliers)
-              when suppliers.isEmpty =>
-            const AppEmptyStateWidget(message: 'Trash is empty.'),
-          SupplierTrashLoaded(suppliers: final suppliers) =>
-            ListView.separated(
-              itemCount: suppliers.length,
-              separatorBuilder: (context, i) =>
-                  const Divider(color: AppColors.divider, height: 1),
-              itemBuilder: (context, index) {
-                final supplier = suppliers[index];
-                return SupplierTrashTile(
-                  supplier: supplier,
-                  onRestore: () =>
-                      bloc.add(SupplierRestoreRequested(supplier.id)),
-                  onPermanentDelete: () =>
-                      bloc.add(SupplierPermanentDeleteRequested(supplier.id)),
-                );
-              },
-            ),
-          SupplierError(failure: final failure) => AppErrorWidget(
-              message: failure.message,
-              onRetry: () => bloc.add(const SuppliersTrashLoaded()),
-            ),
-          _ => const AppEmptyStateWidget(message: 'Trash is empty.'),
         };
       },
     );

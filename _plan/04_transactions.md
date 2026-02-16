@@ -1,4 +1,4 @@
-# Plan 04 — Transactions
+# Plan 04 — Transactions DONE
 
 **Objective:** Multi-line transactions with auto-stamped datetime, supplier+product snapshot per line, auto-computed totals. Both line-level and transaction-level soft-delete + trash/restore.
 

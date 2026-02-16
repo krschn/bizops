@@ -2,32 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/confirm_delete_dialog.dart';
-import '../../domain/entities/product.dart';
+import '../../domain/entities/transaction.dart';
 
-class ProductTrashTile extends StatelessWidget {
-  const ProductTrashTile({
+class TransactionTrashTile extends StatelessWidget {
+  const TransactionTrashTile({
     super.key,
-    required this.product,
+    required this.transaction,
     required this.onRestore,
     required this.onPermanentDelete,
   });
 
-  final Product product;
+  final Transaction transaction;
   final VoidCallback onRestore;
   final VoidCallback onPermanentDelete;
 
   @override
   Widget build(BuildContext context) {
+    final date = transaction.transactedAt;
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
     return ListTile(
       title: Text(
-        product.name,
+        dateStr,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppColors.trashAccent,
               decoration: TextDecoration.lineThrough,
             ),
       ),
       subtitle: Text(
-        '${product.price % 1 == 0 ? product.price.toInt() : product.price.toStringAsFixed(2)} / ${product.unit}',
+        '₱${transaction.grandTotal % 1 == 0 ? transaction.grandTotal.toInt() : transaction.grandTotal.toStringAsFixed(2)}',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.trashAccent,
             ),
@@ -46,7 +50,7 @@ class ProductTrashTile extends StatelessWidget {
                 context,
                 title: 'Permanently Delete',
                 content:
-                    'This will permanently delete "${product.name}". This action cannot be undone.',
+                    'This will permanently delete the transaction from $dateStr. This action cannot be undone.',
               );
               if (confirmed == true) {
                 onPermanentDelete();

@@ -28,14 +28,6 @@ class AppShellPage extends StatelessWidget {
                 label: 'Transactions',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.inventory_2),
-                label: 'Products',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.store),
-                label: 'Suppliers',
-              ),
-              BottomNavigationBarItem(
                 icon: Icon(Icons.payments),
                 label: 'Payroll',
               ),

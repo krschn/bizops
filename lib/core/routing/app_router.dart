@@ -14,6 +14,7 @@ import '../../features/payroll/presentation/pages/employee_list_page.dart';
 import '../../features/payroll/presentation/pages/employee_form_page.dart';
 import '../../features/payroll/presentation/pages/payroll_entry_form_page.dart';
 import '../../features/reports/presentation/pages/report_page.dart';
+import '../../features/manage/presentation/pages/manage_page.dart';
 
 abstract class AppRouter {
   static final GoRouter config = GoRouter(
@@ -44,51 +45,7 @@ abstract class AppRouter {
               ),
             ],
           ),
-          // Branch 1: Products
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/products',
-                builder: (context, state) => const ProductListPage(),
-                routes: [
-                  GoRoute(
-                    path: 'new',
-                    builder: (context, state) => const ProductFormPage(),
-                  ),
-                  GoRoute(
-                    path: ':id',
-                    builder: (context, state) => ProductFormPage(
-                      productId: state.pathParameters['id'],
-                      product: state.extra as Product?,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          // Branch 2: Suppliers
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/suppliers',
-                builder: (context, state) => const SupplierListPage(),
-                routes: [
-                  GoRoute(
-                    path: 'new',
-                    builder: (context, state) => const SupplierFormPage(),
-                  ),
-                  GoRoute(
-                    path: ':id',
-                    builder: (context, state) => SupplierFormPage(
-                      supplierId: state.pathParameters['id'],
-                      supplier: state.extra as Supplier?,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          // Branch 3: Payroll
+          // Branch 1: Payroll
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -125,7 +82,7 @@ abstract class AppRouter {
               ),
             ],
           ),
-          // Branch 4: Reports
+          // Branch 2: Reports
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -135,6 +92,46 @@ abstract class AppRouter {
             ],
           ),
         ],
+      ),
+
+      // Top-level routes (no bottom nav — back button returns to shell)
+      GoRoute(
+        path: '/products',
+        builder: (context, state) => const ProductListPage(),
+        routes: [
+          GoRoute(
+            path: 'new',
+            builder: (context, state) => const ProductFormPage(),
+          ),
+          GoRoute(
+            path: ':productId',
+            builder: (context, state) => ProductFormPage(
+              productId: state.pathParameters['productId'],
+              product: state.extra as Product?,
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/suppliers',
+        builder: (context, state) => const SupplierListPage(),
+        routes: [
+          GoRoute(
+            path: 'new',
+            builder: (context, state) => const SupplierFormPage(),
+          ),
+          GoRoute(
+            path: ':supplierId',
+            builder: (context, state) => SupplierFormPage(
+              supplierId: state.pathParameters['supplierId'],
+              supplier: state.extra as Supplier?,
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/manage',
+        builder: (context, state) => const ManagePage(),
       ),
     ],
   );

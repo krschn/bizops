@@ -36,7 +36,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _nameController = TextEditingController(text: widget.product?.name ?? '');
     _priceController = TextEditingController(
       text: widget.product != null
-          ? widget.product!.price.toStringAsFixed(2)
+          ? (widget.product!.price % 1 == 0
+              ? widget.product!.price.toInt().toString()
+              : widget.product!.price.toStringAsFixed(2))
           : '',
     );
     _unitController = TextEditingController(text: widget.product?.unit ?? '');
@@ -122,7 +124,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        hintText: '0.00',
+                        hintText: '0',
                       ),
                     ),
                   ),

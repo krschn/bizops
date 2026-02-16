@@ -26,7 +26,7 @@ class ProductListTile extends StatelessWidget {
             ),
       ),
       subtitle: Text(
-        '${product.price.toStringAsFixed(2)} / ${product.unit}',
+        '${product.price % 1 == 0 ? product.price.toInt() : product.price.toStringAsFixed(2)} / ${product.unit}',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textSecondary,
             ),

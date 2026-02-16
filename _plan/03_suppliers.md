@@ -1,4 +1,4 @@
-# Plan 03 — Suppliers
+# Plan 03 — Suppliers DONE
 
 **Objective:** Full CRUD for suppliers (name only). Same soft-delete + trash/restore pattern as Products. Suppliers are referenced by Transactions (Plan 04) so their `id` and `name` must be stable.
 

@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../features/products/domain/entities/product.dart';
+import '../../features/suppliers/domain/entities/supplier.dart';
 import '../../features/shell/presentation/pages/app_shell_page.dart';
 import '../../features/transactions/presentation/pages/transaction_list_page.dart';
 import '../../features/transactions/presentation/pages/transaction_form_page.dart';
@@ -80,6 +81,7 @@ abstract class AppRouter {
                     path: ':id',
                     builder: (context, state) => SupplierFormPage(
                       supplierId: state.pathParameters['id'],
+                      supplier: state.extra as Supplier?,
                     ),
                   ),
                 ],
